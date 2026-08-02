@@ -1,6 +1,4 @@
-from pathlib import Path
-
-code = r'''"""PostgreSQL data access for JOY BINGO.
+"""PostgreSQL data access for JOY BINGO.
 
 All wallet mutations are serialized with PostgreSQL row locks and transaction
 references are idempotent. The database is the single source of truth for
@@ -14,7 +12,7 @@ import logging
 import os
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import asyncpg
 
@@ -954,3 +952,4 @@ def secrets_token():
 
 
 db = DatabaseManager()
+'''
