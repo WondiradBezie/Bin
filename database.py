@@ -30,28 +30,76 @@ class DatabaseManager:
         self.initialized = False
 
     async def init_pool(self) -> bool:
-        if not DATABASE_URL:
-            raise RuntimeError("DATABASE_URL is required")
-        last_error = None
-        for attempt in range(1, 4):
-            try:
-                self.pool = await asyncpg.create_pool(
-                    DATABASE_URL,
-                    min_size=2,
-                    max_size=int(os.getenv("DB_POOL_MAX", "20")),
-                    command_timeout=30,
-                    max_inactive_connection_lifetime=300,
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is required")
+
+    last_error = None
+
+    for attempt in range(1, 4):
+        try:
+            from urllib.parse import urlparse, unquote
+
+            parsed = urlparse(DATABASE_URL)
+
+            if parsed.scheme not in ("postgresql", "postgres"):
+                raise RuntimeError(
+                    f"Unsupported DATABASE_URL scheme: {parsed.scheme}"
                 )
-                await self.create_tables()
-                self.initialized = True
-                logger.info("Database pool initialized")
-                return True
-            except Exception as exc:
-                last_error = exc
-                logger.warning("Database connection attempt %s failed: %s", attempt, exc)
-                if attempt < 3:
-                    await asyncio.sleep(attempt * 2)
-        raise RuntimeError(f"Database initialization failed: {last_error}")
+
+            db_user = unquote(parsed.username or "")
+            db_password = unquote(parsed.password or "")
+            db_host = parsed.hostname
+            db_port = parsed.port or 5432
+            db_name = parsed.path.lstrip("/") or "postgres"
+
+            if not db_host:
+                raise RuntimeError(
+                    "DATABASE_URL does not contain a database host"
+                )
+
+            logger.info(
+                "Connecting to PostgreSQL host=%s port=%s database=%s",
+                db_host,
+                db_port,
+                db_name,
+            )
+
+            self.pool = await asyncpg.create_pool(
+                host=db_host,
+                port=db_port,
+                user=db_user,
+                password=db_password,
+                database=db_name,
+                ssl="require",
+                min_size=2,
+                max_size=int(os.getenv("DB_POOL_MAX", "20")),
+                command_timeout=30,
+                max_inactive_connection_lifetime=300,
+            )
+
+            await self.create_tables()
+
+            self.initialized = True
+
+            logger.info("✅ Database pool initialized")
+
+            return True
+
+        except Exception as exc:
+            last_error = exc
+
+            logger.warning(
+                "Database connection attempt %s failed: %s",
+                attempt,
+                exc,
+            )
+
+            if attempt < 3:
+                await asyncio.sleep(attempt * 2)
+
+    raise RuntimeError(
+        f"Database initialization failed: {last_error}"
+    )
 
     async def create_tables(self):
         async with self.pool.acquire() as conn:
