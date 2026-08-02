@@ -30,8 +30,8 @@ class DatabaseManager:
         self.initialized = False
 
     async def init_pool(self) -> bool:
-    if not DATABASE_URL:
-        raise RuntimeError("DATABASE_URL is required")
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL is required")
 
     last_error = None
 
