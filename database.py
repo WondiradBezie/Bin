@@ -32,7 +32,6 @@ class DatabaseManager:
         self.initialized = False
 
     async def init_pool(self) -> bool:
-        """Create the PostgreSQL connection pool and initialize tables."""
         if not DATABASE_URL:
             raise RuntimeError("DATABASE_URL is required")
 
@@ -40,14 +39,10 @@ class DatabaseManager:
 
         for attempt in range(1, 4):
             try:
-                logger.info("Connecting to PostgreSQL database...")
+                logger.info("Initializing database connection...")
 
-                # Let asyncpg parse the complete Supabase DATABASE_URL.
-                # This avoids manually parsing the pooler hostname and
-                # accidentally passing a malformed host/port combination.
                 self.pool = await asyncpg.create_pool(
-                    dsn=DATABASE_URL,
-                    ssl="require",
+                    DATABASE_URL,
                     min_size=2,
                     max_size=int(os.getenv("DB_POOL_MAX", "20")),
                     command_timeout=30,
@@ -63,18 +58,15 @@ class DatabaseManager:
             except Exception as exc:
                 last_error = exc
 
-                if self.pool is not None:
-                    try:
-                        await self.pool.close()
-                    except Exception:
-                        pass
-                    self.pool = None
-
                 logger.warning(
                     "Database connection attempt %s failed: %s",
                     attempt,
                     exc,
                 )
+
+                if self.pool:
+                    await self.pool.close()
+                    self.pool = None
 
                 if attempt < 3:
                     await asyncio.sleep(attempt * 2)
@@ -962,9 +954,3 @@ def secrets_token():
 
 
 db = DatabaseManager()
-'''
-
-path = Path("/mnt/data/database_fixed.py")
-path.write_text(code, encoding="utf-8")
-print(f"Created: {path}")
-print(f"Lines: {len(code.splitlines())}")
