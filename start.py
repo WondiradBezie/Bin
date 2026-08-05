@@ -1,42 +1,22 @@
-"""Production launcher for JOY BINGO.
-
-Starts both FastAPI/Uvicorn and the Telegram bot polling loop
-in the same asyncio event loop.
-"""
-
+# start.py (full content after modifications)
+import os
 import asyncio
 import logging
-import os
-
 import uvicorn
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    MessageHandler,
-    filters,
-)
-
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import free_deploy as service
-
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
 )
-
 logger = logging.getLogger("joybingo.start")
-
 
 def build_bot():
     token = os.getenv("BOT_TOKEN")
-
     if not token:
         raise RuntimeError("BOT_TOKEN is required")
-
     bot = Application.builder().token(token).build()
-
-    # Commands
     bot.add_handler(CommandHandler("start", service.start_command))
     bot.add_handler(CommandHandler("register", service.register_command))
     bot.add_handler(CommandHandler("about", service.about_command))
@@ -49,78 +29,57 @@ def build_bot():
     bot.add_handler(CommandHandler("withdraw", service.withdraw_command))
     bot.add_handler(CommandHandler("profile", service.profile_command))
     bot.add_handler(CommandHandler("rules", service.rules_command))
-
-    # Inline keyboard buttons
-    bot.add_handler(
-        CallbackQueryHandler(service.button_callback)
-    )
-
-    # Normal text messages
-    bot.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            service.message_handler,
-        )
-    )
-
+    bot.add_handler(CallbackQueryHandler(service.button_callback))
+    bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, service.message_handler))
     return bot
 
+async def set_webhook(bot):
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL")
+    if not webhook_url:
+        logger.warning("TELEGRAM_WEBHOOK_URL not set – falling back to polling")
+        return False
+    if not webhook_url.endswith("/api/webhook"):
+        webhook_url = webhook_url.rstrip("/") + "/api/webhook"
+    secret_token = os.getenv("TELEGRAM_SECRET_TOKEN")
+    try:
+        await bot.bot.delete_webhook()
+        await bot.bot.set_webhook(
+            url=webhook_url,
+            secret_token=secret_token,
+            allowed_updates=["message", "callback_query"],
+        )
+        logger.info(f"✅ Webhook set to {webhook_url}")
+        return True
+    except Exception as e:
+        logger.error(f"Webhook setup failed: {e}")
+        return False
 
 async def main():
-
     logger.info("Starting JOY BINGO...")
-
-    # Initialize PostgreSQL
     await service.db.init_pool()
     logger.info("✅ Database initialized")
-
-    # Create Telegram application
     bot = build_bot()
-
-    # Make it available to free_deploy.py
     service.bot_app = bot
-
-    # Start Telegram
     await bot.initialize()
     await bot.start()
 
-    await bot.updater.start_polling(
-        drop_pending_updates=True
-    )
+    if not await set_webhook(bot):
+        await bot.updater.start_polling(drop_pending_updates=True)
+        logger.info("✅ Polling started (fallback)")
 
-    logger.info("✅ Telegram bot polling started")
-
-    # Start FastAPI/Uvicorn
     port = int(os.getenv("PORT", "8000"))
-
-    config = uvicorn.Config(
-        service.app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info",
-    )
-
+    config = uvicorn.Config(service.app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
-
     try:
         await server.serve()
-
     finally:
-        logger.info("Stopping JOY BINGO...")
-
+        await bot.bot.delete_webhook()
         if bot.updater and bot.updater.running:
             await bot.updater.stop()
-
-        if bot.running:
-            await bot.stop()
-
+        await bot.stop()
         await bot.shutdown()
-
         if service.db.pool:
             await service.db.pool.close()
-
-        logger.info("JOY BINGO stopped")
-
 
 if __name__ == "__main__":
     asyncio.run(main())
