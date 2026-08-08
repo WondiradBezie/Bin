@@ -976,7 +976,12 @@ Mark all numbers in a row, column, or diagonal to win!
         )
     
     elif data == "support":
-        support_text = f"""
+        # ... text definition ...
+        await query.edit_message_text(
+            support_text,
+            reply_markup=reply_markup,
+            parse_mode=None  # <--- FIXED: Disables Markdown to prevent crashes
+        )
 📞 **CONTACT SUPPORT**
 ══════════════════
 
@@ -1369,6 +1374,7 @@ async def join_game(request: Request):
     ok, message, state = await game_service.join(user_id, username, room_id, card_number)
     _sync_room_metadata()
     if not ok:
+        print(f"❌ CARD SELECT FAILED FOR USER {user_id}: {message}") # <--- ADD THIS LINE
         raise HTTPException(status_code=400, detail=message)
     return JSONResponse({"success": True, "message": message, "game_state": state, "player_data": state.get("player")})
 
