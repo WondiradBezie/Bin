@@ -984,7 +984,7 @@ Mark all numbers in a row, column, or diagonal to win!
         )
     
         elif data == "support":
-        support_text = """
+            support_text = """
 📞 CONTACT SUPPORT
 ══════════════════
 
