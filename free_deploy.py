@@ -982,7 +982,7 @@ Mark all numbers in a row, column, or diagonal to win!
             reply_markup=reply_markup,
             parse_mode=None  # <--- FIXED: Disables Markdown to prevent crashes
         )
-📞 **CONTACT SUPPORT**
+ **CONTACT SUPPORT**
 ══════════════════
 
 **How can we help you?**
