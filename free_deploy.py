@@ -879,24 +879,32 @@ Ready to play? Click the Register button below to get your free {STARTING_BALANC
         balance = stats.get("balance", 0) if isinstance(stats, dict) else stats.balance
         total_deposits = stats.get("total_deposits", 0) if isinstance(stats, dict) else stats.total_deposits
         total_withdrawals = stats.get("total_withdrawals", 0) if isinstance(stats, dict) else stats.total_withdrawals
-        registered_at = stats.get("created_at", datetime.now().isoformat()) if isinstance(stats, dict) else stats.created_at
         
+        # FIX: Safely convert datetime object to string
+        raw_date = stats.get("created_at") if isinstance(stats, dict) else getattr(stats, "created_at", None)
+        if isinstance(raw_date, datetime):
+            registered_at_str = raw_date.strftime("%Y-%m-%d")
+        elif isinstance(raw_date, str):
+            registered_at_str = raw_date[:10]
+        else:
+            registered_at_str = "N/A"
+
         profile_text = f"""
 👤 **USER PROFILE**
 ══════════════════
 
-**Personal Info:**
+Personal Info:
 • Name: {first_name} {last_name or ''}
 • Username: @{username or 'N/A'}
-• User ID: `{user_id}`
-• Registered: {registered_at[:10] if registered_at else 'N/A'}
+• User ID: {user_id}
+• Registered: {registered_at_str}
 
-**Game Statistics:**
+Game Statistics:
 • Games Played: {games_played}
 • Wins: {games_won}
 • Win Rate: {win_rate:.1f}%
 
-**Financial:**
+Financial:
 • Current Balance: {balance} Birr
 • Total Deposits: {total_deposits} Birr
 • Total Withdrawals: {total_withdrawals} Birr
@@ -905,7 +913,7 @@ Ready to play? Click the Register button below to get your free {STARTING_BALANC
         await query.edit_message_text(
             profile_text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            parse_mode=None  # <--- Disables Markdown to prevent crashes
         )
     
     elif data == "rules":
@@ -975,7 +983,7 @@ Mark all numbers in a row, column, or diagonal to win!
             parse_mode='Markdown'
         )
     
-    elif data == "support":
+        elif data == "support":
         support_text = """
 📞 CONTACT SUPPORT
 ══════════════════
@@ -1003,7 +1011,7 @@ Please include your User ID and transaction ID when contacting support.
         await query.edit_message_text(
             support_text,
             reply_markup=reply_markup,
-            parse_mode=None
+            parse_mode=None  # <--- Disables Markdown to prevent crashes
         )
 
     elif data == "send_support_message":
@@ -1015,7 +1023,7 @@ Please include your User ID and transaction ID when contacting support.
             "• For withdrawals: amount, phone number\n"
             "• For game issues: describe the problem\n\n"
             "Your message will be sent directly to admin.",
-            parse_mode=None
+            parse_mode=None  # <--- Disables Markdown
         )
         context.user_data['awaiting_support_message'] = True
     
