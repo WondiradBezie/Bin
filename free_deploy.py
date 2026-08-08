@@ -983,8 +983,8 @@ Mark all numbers in a row, column, or diagonal to win!
             parse_mode='Markdown'
         )
     
-        elif data == "support":
-            support_text = """
+    elif data == "support":
+        support_text = """
 📞 CONTACT SUPPORT
 ══════════════════
 
