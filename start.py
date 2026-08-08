@@ -1,4 +1,3 @@
-# start.py (full content after modifications)
 import os
 import asyncio
 import logging
@@ -34,45 +33,63 @@ def build_bot():
     return bot
 
 async def set_webhook(bot):
-    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL")
+    # FIX: Use TELEGRAM_WEBHOOK_URL if it exists, otherwise fall back to WEBAPP_URL
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL") or os.getenv("WEBAPP_URL")
+    
     if not webhook_url:
-        logger.warning("TELEGRAM_WEBHOOK_URL not set – falling back to polling")
+        logger.error("❌ CRITICAL: Neither TELEGRAM_WEBHOOK_URL nor WEBAPP_URL is set!")
         return False
+        
     if not webhook_url.endswith("/api/webhook"):
         webhook_url = webhook_url.rstrip("/") + "/api/webhook"
+        
     secret_token = os.getenv("TELEGRAM_SECRET_TOKEN")
+    
     try:
-        await bot.bot.delete_webhook()
+        logger.info(f"🔄 Deleting old webhooks...")
+        await bot.bot.delete_webhook(drop_pending_updates=True)
+        
+        logger.info(f"🚀 Setting new webhook to: {webhook_url}")
         await bot.bot.set_webhook(
             url=webhook_url,
             secret_token=secret_token,
             allowed_updates=["message", "callback_query"],
         )
-        logger.info(f"✅ Webhook set to {webhook_url}")
+        logger.info(f"✅ Webhook successfully set to {webhook_url}")
         return True
     except Exception as e:
-        logger.error(f"Webhook setup failed: {e}")
+        logger.error(f"❌ Webhook setup failed: {e}")
         return False
 
 async def main():
     logger.info("Starting JOY BINGO...")
+    
+    # 1. Initialize Database
     await service.db.init_pool()
     logger.info("✅ Database initialized")
+    
+    # 2. Build and Start Bot
     bot = build_bot()
     service.bot_app = bot
     await bot.initialize()
     await bot.start()
-
-    if not await set_webhook(bot):
-        await bot.updater.start_polling(drop_pending_updates=True)
-        logger.info("✅ Polling started (fallback)")
-
+    
+    # 3. Set Webhook (NO POLLING FALLBACK)
+    webhook_success = await set_webhook(bot)
+    if not webhook_success:
+        logger.error("❌ Failed to set webhook. Please check your WEBAPP_URL environment variable.")
+        # We intentionally DO NOT fall back to polling to prevent the 409 Conflict error
+        
+    # 4. Start FastAPI Server
     port = int(os.getenv("PORT", "8000"))
     config = uvicorn.Config(service.app, host="0.0.0.0", port=port, log_level="info")
     server = uvicorn.Server(config)
+    
     try:
         await server.serve()
     finally:
+        # Cleanup on shutdown
+        logger.info("🛑 Shutting down...")
         await bot.bot.delete_webhook()
         if bot.updater and bot.updater.running:
             await bot.updater.stop()
