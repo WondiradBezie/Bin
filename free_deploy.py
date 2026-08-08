@@ -976,41 +976,48 @@ Mark all numbers in a row, column, or diagonal to win!
         )
     
     elif data == "support":
-        # ... text definition ...
-        await query.edit_message_text(
-            support_text,
-            reply_markup=reply_markup,
-            parse_mode=None  # <--- FIXED: Disables Markdown to prevent crashes
-        )
-**CONTACT SUPPORT**
+        support_text = """
+📞 CONTACT SUPPORT
 ══════════════════
 
-**How can we help you?**
+How can we help you?
 
-**Common Issues:**
+Common Issues:
 • Deposit problems - Provide transaction ID
 • Withdrawal issues - Check balance and phone number
 • Game questions
 • Technical support
 • Account issues
 
-**Contact Methods:**
+Contact Methods:
 • Email: wondiradbeziemitiku@gmail.com
 • Telegram: @AbushBezieMitiku
 • Response time: 24 hours
 
-**Payment Number:** `0948813201`
+Payment Number: 0948813201
 
 Please include your User ID and transaction ID when contacting support.
 """
         keyboard = [[InlineKeyboardButton("📝 Send Message", callback_data="send_support_message")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
         await query.edit_message_text(
             support_text,
             reply_markup=reply_markup,
-            parse_mode='Markdown'
+            parse_mode=None
         )
+
+    elif data == "send_support_message":
+        await query.edit_message_text(
+            "📝 SEND MESSAGE TO SUPPORT\n\n"
+            "Please write your message below.\n\n"
+            "Include details about your issue:\n"
+            "• For deposits: transaction ID, amount, method\n"
+            "• For withdrawals: amount, phone number\n"
+            "• For game issues: describe the problem\n\n"
+            "Your message will be sent directly to admin.",
+            parse_mode=None
+        )
+        context.user_data['awaiting_support_message'] = True
     
     elif data == "send_support_message":
         await query.edit_message_text(
