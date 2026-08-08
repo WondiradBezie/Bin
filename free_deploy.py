@@ -982,7 +982,7 @@ Mark all numbers in a row, column, or diagonal to win!
             reply_markup=reply_markup,
             parse_mode=None  # <--- FIXED: Disables Markdown to prevent crashes
         )
- **CONTACT SUPPORT**
+**CONTACT SUPPORT**
 ══════════════════
 
 **How can we help you?**
@@ -995,8 +995,8 @@ Mark all numbers in a row, column, or diagonal to win!
 • Account issues
 
 **Contact Methods:**
-• Email: support@joybingo.com
-• Telegram: @joybingo_support
+• Email: wondiradbeziemitiku@gmail.com
+• Telegram: @AbushBezieMitiku
 • Response time: 24 hours
 
 **Payment Number:** `0948813201`
